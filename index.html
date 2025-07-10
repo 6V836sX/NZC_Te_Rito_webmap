@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-control-geocoder.Geocoder.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title>New Zealand Cricket Club Map</title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet-control-geocoder.Geocoder.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="data/Suburb_Boundaries_joined_1.js"></script>
+        <script src="data/Club_2.js"></script>
+        <script>
+        var highlightLayer;
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+
+            if (e.target.feature.geometry.type === 'LineString' || e.target.feature.geometry.type === 'MultiLineString') {
+              highlightLayer.setStyle({
+                color: '#ffff00',
+              });
+            } else {
+              highlightLayer.setStyle({
+                fillColor: '#ffff00',
+                fillOpacity: 1
+              });
+            }
+        }
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:20, minZoom:1
+        }).fitBounds([[-49.05366247072754,-179.88645396694395],[-24.178195948440244,179.43470162448415]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // add class to format popup if it contains media
+		function addClassToPopupIfMedia(content, popup) {
+			var tempDiv = document.createElement('div');
+			tempDiv.innerHTML = content;
+			if (tempDiv.querySelector('td img')) {
+				popup._contentNode.classList.add('media');
+					// Delay to force the redraw
+					setTimeout(function() {
+						popup.update();
+					}, 10);
+			} else {
+				popup._contentNode.classList.remove('media');
+			}
+		}
+        var title = new L.Control({'position':'topleft'});
+        title.onAdd = function (map) {
+            this._div = L.DomUtil.create('div', 'info');
+            this.update();
+            return this._div;
+        };
+        title.update = function () {
+            this._div.innerHTML = '<h2>New Zealand Cricket Club Map</h2>';
+        };
+        title.addTo(map);
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+            map.setMaxBounds(map.getBounds());
+        }
+        map.createPane('pane_OSMStandard_0');
+        map.getPane('pane_OSMStandard_0').style.zIndex = 400;
+        var layer_OSMStandard_0 = L.tileLayer('http://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OSMStandard_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap contributors, CC-BY-SA</a>',
+            minZoom: 1,
+            maxZoom: 20,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        layer_OSMStandard_0;
+        map.addLayer(layer_OSMStandard_0);
+        function pop_Suburb_Boundaries_joined_1(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">name</th>\
+                        <td class="visible-with-data" id="name">' + (feature.properties['name'] !== null ? autolinker.link(String(feature.properties['name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">pen_popula</th>\
+                        <td class="visible-with-data" id="pen_popula">' + (feature.properties['pen_popula'] !== null ? autolinker.link(String(feature.properties['pen_popula']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">pen_player</th>\
+                        <td class="visible-with-data" id="pen_player">' + (feature.properties['pen_player'] !== null ? autolinker.link(String(feature.properties['pen_player']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">pen_penetr</th>\
+                        <td class="visible-with-data" id="pen_penetr">' + (feature.properties['pen_penetr'] !== null ? autolinker.link(String(feature.properties['pen_penetr']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Suburb_Boundaries_joined_1_0(feature) {
+            if (feature.properties['pen_penetr'] >= 0.030000 && feature.properties['pen_penetr'] <= 1.560000 ) {
+                return {
+                pane: 'pane_Suburb_Boundaries_joined_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(48,18,59,0.8)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['pen_penetr'] >= 1.560000 && feature.properties['pen_penetr'] <= 4.290000 ) {
+                return {
+                pane: 'pane_Suburb_Boundaries_joined_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(70,134,251,0.8)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['pen_penetr'] >= 4.290000 && feature.properties['pen_penetr'] <= 8.420000 ) {
+                return {
+                pane: 'pane_Suburb_Boundaries_joined_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(27,229,181,0.8)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['pen_penetr'] >= 8.420000 && feature.properties['pen_penetr'] <= 13.670000 ) {
+                return {
+                pane: 'pane_Suburb_Boundaries_joined_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(164,252,60,0.8)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['pen_penetr'] >= 13.670000 && feature.properties['pen_penetr'] <= 21.990000 ) {
+                return {
+                pane: 'pane_Suburb_Boundaries_joined_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(251,185,56,0.8)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['pen_penetr'] >= 21.990000 && feature.properties['pen_penetr'] <= 36.770000 ) {
+                return {
+                pane: 'pane_Suburb_Boundaries_joined_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(227,68,10,0.8)',
+                interactive: true,
+            }
+            }
+            if (feature.properties['pen_penetr'] >= 36.770000 && feature.properties['pen_penetr'] <= 127.080000 ) {
+                return {
+                pane: 'pane_Suburb_Boundaries_joined_1',
+                stroke: false, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(122,4,3,0.8)',
+                interactive: true,
+            }
+            }
+        }
+        map.createPane('pane_Suburb_Boundaries_joined_1');
+        map.getPane('pane_Suburb_Boundaries_joined_1').style.zIndex = 401;
+        map.getPane('pane_Suburb_Boundaries_joined_1').style['mix-blend-mode'] = 'normal';
+        var layer_Suburb_Boundaries_joined_1 = new L.geoJson(json_Suburb_Boundaries_joined_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Suburb_Boundaries_joined_1',
+            layerName: 'layer_Suburb_Boundaries_joined_1',
+            pane: 'pane_Suburb_Boundaries_joined_1',
+            onEachFeature: pop_Suburb_Boundaries_joined_1,
+            style: style_Suburb_Boundaries_joined_1_0,
+        });
+        bounds_group.addLayer(layer_Suburb_Boundaries_joined_1);
+        map.addLayer(layer_Suburb_Boundaries_joined_1);
+        function pop_Club_2(feature, layer) {
+            layer.on({
+                mouseout: function(e) {
+                    for (var i in e.target._eventParents) {
+                        if (typeof e.target._eventParents[i].resetStyle === 'function') {
+                            e.target._eventParents[i].resetStyle(e.target);
+                        }
+                    }
+                },
+                mouseover: highlightFeature,
+            });
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">CLUB_NAME</th>\
+                        <td>' + (feature.properties['CLUB_NAME'] !== null ? autolinker.link(String(feature.properties['CLUB_NAME']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">CLUB_TYPE</th>\
+                        <td>' + (feature.properties['CLUB_TYPE'] !== null ? autolinker.link(String(feature.properties['CLUB_TYPE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">ORGANISATION_URL</th>\
+                        <td class="visible-with-data" id="ORGANISATION_URL">' + (feature.properties['ORGANISATION_URL'] !== null ? autolinker.link(String(feature.properties['ORGANISATION_URL']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PARENT_ORG_ID</th>\
+                        <td>' + (feature.properties['PARENT_ORG_ID'] !== null ? autolinker.link(String(feature.properties['PARENT_ORG_ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PARENT_ORG_NAME</th>\
+                        <td>' + (feature.properties['PARENT_ORG_NAME'] !== null ? autolinker.link(String(feature.properties['PARENT_ORG_NAME']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PARENT_ORG_TYPE</th>\
+                        <td>' + (feature.properties['PARENT_ORG_TYPE'] !== null ? autolinker.link(String(feature.properties['PARENT_ORG_TYPE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">CLUB_SUBURB</th>\
+                        <td>' + (feature.properties['CLUB_SUBURB'] !== null ? autolinker.link(String(feature.properties['CLUB_SUBURB']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">CLUB_POSTCODE</th>\
+                        <td class="visible-with-data" id="CLUB_POSTCODE">' + (feature.properties['CLUB_POSTCODE'] !== null ? autolinker.link(String(feature.properties['CLUB_POSTCODE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <td colspan="2">' + (feature.properties['CLUB_ADDRESS'] !== null ? autolinker.link(String(feature.properties['CLUB_ADDRESS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Club_2_0(feature) {
+            switch(String(feature.properties['CLUB_TYPE'])) {
+                case 'ASSOCIATION':
+                    return {
+                pane: 'pane_Club_2',
+                radius: 2.8,
+                stroke: false,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(220,79,192,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'CLUB':
+                    return {
+                pane: 'pane_Club_2',
+                radius: 2.8,
+                stroke: false,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(239,10,57,1.0)',
+                interactive: true,
+            }
+                    break;
+                case 'School':
+                    return {
+                pane: 'pane_Club_2',
+                radius: 2.8,
+                stroke: false,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(32,214,65,1.0)',
+                interactive: true,
+            }
+                    break;
+            }
+        }
+        map.createPane('pane_Club_2');
+        map.getPane('pane_Club_2').style.zIndex = 402;
+        map.getPane('pane_Club_2').style['mix-blend-mode'] = 'normal';
+        var layer_Club_2 = new L.geoJson(json_Club_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Club_2',
+            layerName: 'layer_Club_2',
+            pane: 'pane_Club_2',
+            onEachFeature: pop_Club_2,
+            pointToLayer: function (feature, latlng) {
+                var context = {
+                    feature: feature,
+                    variables: {}
+                };
+                return L.circleMarker(latlng, style_Club_2_0(feature));
+            },
+        });
+        bounds_group.addLayer(layer_Club_2);
+        map.addLayer(layer_Club_2);
+        var osmGeocoder = new L.Control.Geocoder({
+            collapsed: true,
+            position: 'topleft',
+            text: 'Search',
+            title: 'Testing'
+        }).addTo(map);
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .className += ' fa fa-search';
+        document.getElementsByClassName('leaflet-control-geocoder-icon')[0]
+        .title += 'Search for a place';
+        var overlaysTree = [
+            {label: 'Club<br /><table><tr><td style="text-align: center;"><img src="legend/Club_2_ASSOCIATION0.png" /></td><td>ASSOCIATION</td></tr><tr><td style="text-align: center;"><img src="legend/Club_2_CLUB1.png" /></td><td>CLUB</td></tr><tr><td style="text-align: center;"><img src="legend/Club_2_School2.png" /></td><td>School</td></tr></table>', layer: layer_Club_2},
+            {label: 'Suburb_Boundaries_joined<br /><table><tr><td style="text-align: center;"><img src="legend/Suburb_Boundaries_joined_1_0160.png" /></td><td>0 - 1.6</td></tr><tr><td style="text-align: center;"><img src="legend/Suburb_Boundaries_joined_1_16431.png" /></td><td>1.6 - 4.3</td></tr><tr><td style="text-align: center;"><img src="legend/Suburb_Boundaries_joined_1_43842.png" /></td><td>4.3 - 8.4</td></tr><tr><td style="text-align: center;"><img src="legend/Suburb_Boundaries_joined_1_841373.png" /></td><td>8.4 - 13.7</td></tr><tr><td style="text-align: center;"><img src="legend/Suburb_Boundaries_joined_1_137224.png" /></td><td>13.7 - 22</td></tr><tr><td style="text-align: center;"><img src="legend/Suburb_Boundaries_joined_1_223685.png" /></td><td>22 - 36.8</td></tr><tr><td style="text-align: center;"><img src="legend/Suburb_Boundaries_joined_1_36812716.png" /></td><td>36.8 - 127.1</td></tr></table>', layer: layer_Suburb_Boundaries_joined_1},
+            {label: "OSM Standard", layer: layer_OSMStandard_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: false, 
+        });
+        lay.addTo(map);
+		document.addEventListener("DOMContentLoaded", function() {
+            // set new Layers List height which considers toggle icon
+            function newLayersListHeight() {
+                var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (layerScrollbarElement) {
+                    var layersListElement = document.querySelector('.leaflet-control-layers-list');
+                    var originalHeight = layersListElement.style.height 
+                        || window.getComputedStyle(layersListElement).height;
+                    var newHeight = parseFloat(originalHeight) - 50;
+                    layersListElement.style.height = newHeight + 'px';
+                }
+            }
+            var isLayersListExpanded = true;
+            var controlLayersElement = document.querySelector('.leaflet-control-layers');
+            var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
+            // toggle Collapsed/Expanded and apply new Layers List height
+            toggleLayerControl.addEventListener('click', function() {
+                if (isLayersListExpanded) {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlLayersElement.classList.add('leaflet-control-layers-expanded');
+                }
+                isLayersListExpanded = !isLayersListExpanded;
+                newLayersListHeight()
+            });	
+			// apply new Layers List height if toggle layerstree
+			if (controlLayersElement) {
+				controlLayersElement.addEventListener('click', function(event) {
+					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
+					if (toggleLayerHeaderPointer) {
+						newLayersListHeight();
+					}
+				});
+			}
+            // Collapsed/Expanded at Start to apply new height
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            setTimeout(function() {
+                toggleLayerControl.click();
+            }, 10);
+            // Collapsed touch/small screen
+            var isSmallScreen = window.innerWidth < 650;
+            if (isSmallScreen) {
+                setTimeout(function() {
+                    controlLayersElement.classList.remove('leaflet-control-layers-expanded');
+                    isLayersListExpanded = !isLayersListExpanded;
+                }, 500);
+            }  
+        });       
+        setBounds();
+        resetLabels([layer_Suburb_Boundaries_joined_1]);
+        map.on("zoomend", function(){
+            resetLabels([layer_Suburb_Boundaries_joined_1]);
+        });
+        map.on("layeradd", function(){
+            resetLabels([layer_Suburb_Boundaries_joined_1]);
+        });
+        map.on("layerremove", function(){
+            resetLabels([layer_Suburb_Boundaries_joined_1]);
+        });
+        </script>
+    </body>
+</html>
